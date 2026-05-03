@@ -719,6 +719,14 @@ function showDone() {
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 buildHome();
+
+// Register service worker for offline use
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/PT/sw.js')
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
 </script>
 </body>
 </html>
