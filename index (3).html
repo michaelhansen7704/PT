@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="PT Session"/>
+  <meta name="theme-color" content="#0a0a16"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon.png"/>
+  <title>PT Session</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono:wght@400;700&display=swap');
+
+    :root {
+      --bg:       #0a0a16;
+      --card:     #0e0e22;
+      --deep:     #08081a;
+      --line:     #181828;
+      --hip:      #e07a5f;
+      --wrist:    #81b29a;
+      --shoulder: #6b9ab8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      background: var(--bg);
+      color: #fff;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      min-height: 100vh;
+      overscroll-behavior: none;
+    }
+
+    #app {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    button { cursor: pointer; border: none; outline: none; font-family: inherit; }
+
+    .screen { display: none; }
+    .screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .fade { animation: fadeUp .25s ease both; }
+
+    /* ── home ── */
+    .home-header {
+      padding: env(safe-area-inset-top, 48px) 22px 24px;
+      background: linear-gradient(160deg, #10102a 0%, var(--bg) 100%);
+    }
+    .home-label { font-size: 10px; letter-spacing: 3px; color: #444; text-transform: uppercase; margin-bottom: 12px; }
+    .home-title { font-size: 34px; font-weight: 800; line-height: 1.08; margin-bottom: 8px; }
+    .home-sub   { font-size: 14px; color: #555; }
+
+    .time-bars { margin: 18px 0 4px; display: flex; flex-direction: column; gap: 10px; }
+    .time-bar-row { display: flex; align-items: center; gap: 10px; }
+    .time-bar-label { font-size: 12px; font-weight: 700; width: 130px; flex-shrink: 0; }
+    .time-bar-track { flex: 1; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+    .time-bar-fill  { height: 100%; border-radius: 3px; opacity: 0.85; }
+    .time-bar-min   { font-size: 11px; color: #555; width: 36px; text-align: right; flex-shrink: 0; }
+
+    .ex-list { padding: 18px 16px 0; }
+    .cat-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 10px; padding-left: 2px;
+    }
+    .ex-row {
+      width: 100%; background: var(--card); border-radius: 12px;
+      padding: 13px 16px; display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 6px; text-align: left; border: 1px solid transparent;
+      transition: opacity .15s;
+    }
+    .ex-row:active { opacity: 0.75; }
+    .ex-row.open { border-radius: 12px 12px 0 0; margin-bottom: 0; }
+    .ex-row-name { font-weight: 700; font-size: 14px; color: #fff; margin-bottom: 3px; }
+    .ex-row-meta { font-size: 12px; color: #555; }
+    .ex-chevron  { font-size: 13px; margin-left: 10px; flex-shrink: 0; }
+
+    .ex-detail {
+      background: var(--deep); border: 1px solid transparent;
+      border-top: none; border-radius: 0 0 12px 12px;
+      padding: 14px 16px; margin-bottom: 6px;
+    }
+    .detail-section-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-bottom: 5px; }
+    .detail-text { font-size: 13px; color: #888; line-height: 1.75; white-space: pre-line; }
+    .detail-text.how { color: #aaa; }
+
+    .note-box {
+      margin: 4px 16px 16px;
+      padding: 14px 16px; background: var(--card);
+      border-radius: 14px; border-left: 3px solid var(--hip);
+    }
+    .note-label { font-size: 11px; color: var(--hip); font-weight: 700; letter-spacing: 1px; margin-bottom: 5px; }
+    .note-text  { font-size: 13px; color: #666; line-height: 1.7; }
+
+    .start-wrap { padding: 0 16px 52px; }
+    .start-btn  {
+      width: 100%; padding: 20px; border-radius: 18px;
+      background: var(--hip); color: #0a0a16;
+      font-size: 18px; font-weight: 800; border: none;
+      transition: opacity .15s;
+    }
+    .start-btn:active { opacity: 0.85; }
+
+    /* ── exercise screen ── */
+    .ex-nav {
+      padding: env(safe-area-inset-top, 48px) 18px 12px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .back-btn {
+      background: var(--card); color: #fff;
+      width: 40px; height: 40px; border-radius: 11px;
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .nav-cat  { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .nav-sub  { font-size: 13px; color: #555; margin-top: 1px; }
+    .set-badge {
+      font-size: 12px; font-family: 'DM Mono', monospace; font-weight: 700;
+      padding: 5px 13px; border-radius: 20px; flex-shrink: 0;
+    }
+
+    .prog-wrap { padding: 0 18px 6px; }
+    .prog-track { height: 5px; background: var(--line); border-radius: 5px; display: flex; overflow: hidden; }
+    .prog-seg { height: 100%; transition: opacity .4s; }
+    .prog-times {
+      display: flex; justify-content: space-between; margin-top: 5px;
+      font-size: 10px; color: #333;
+    }
+
+    .rest-bar {
+      margin: 0 16px 12px; padding: 14px 18px;
+      background: var(--card); border-radius: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      border: 1px solid transparent;
+    }
+    .rest-label { font-size: 14px; font-weight: 700; }
+    .rest-sub   { font-size: 12px; color: #555; margin-top: 2px; }
+    .rest-count { font-size: 32px; font-family: 'DM Mono', monospace; font-weight: 800; }
+
+    .ex-card {
+      flex: 1; margin: 0 16px; background: var(--card); border-radius: 22px;
+      padding: 22px 20px; display: flex; flex-direction: column; gap: 14px;
+      overflow-y: auto; border: 1px solid transparent;
+    }
+    .ex-level { font-size: 11px; color: #555; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+    .ex-name  { font-size: 22px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; }
+    .ex-why   { font-size: 13px; font-style: italic; line-height: 1.6; opacity: 0.9; }
+
+    .how-box {
+      background: var(--deep); border-radius: 14px; padding: 16px 18px;
+      border-left: 3px solid transparent;
+    }
+    .how-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    .how-text  { font-size: 15px; color: #e0e0f0; line-height: 1.9; white-space: pre-line; }
+
+    .timer-wrap { display: flex; justify-content: center; }
+
+    /* SVG timer ring */
+    .timer-svg { display: block; }
+    .timer-done { margin-top: 6px; font-size: 13px; font-weight: 700; text-align: center; }
+
+    .reps-box {
+      border-radius: 18px; padding: 14px 36px; text-align: center;
+      border: 2px solid transparent;
+    }
+    .reps-val  { font-size: 18px; font-weight: 700; font-family: 'DM Mono', monospace; }
+    .reps-sub  { font-size: 11px; color: #555; margin-top: 4px; }
+
+    .cues-label { font-size: 10px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    .cue-row { display: flex; gap: 10px; margin-bottom: 9px; align-items: flex-start; }
+    .cue-icon {
+      width: 22px; height: 22px; border-radius: 7px;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .cue-text { font-size: 14px; color: #c0c0d8; line-height: 1.6; }
+
+    .btn-row { padding: 14px 16px 38px; display: flex; flex-direction: column; gap: 9px; }
+
+    .timer-btn {
+      padding: 14px; border-radius: 14px; font-size: 15px; font-weight: 700;
+      background: transparent; border: 2px solid transparent; transition: opacity .15s;
+    }
+    .timer-btn:active { opacity: 0.75; }
+
+    .done-btn {
+      padding: 18px; border-radius: 16px; font-size: 16px; font-weight: 800;
+      border: none; transition: opacity .15s;
+    }
+    .done-btn:active { opacity: 0.85; }
+    .done-btn:disabled { opacity: 0.5; }
+
+    .skip-btn {
+      padding: 12px; border-radius: 13px; font-size: 14px; font-weight: 600;
+      background: transparent; color: #333; border: 1.5px solid var(--line);
+      transition: opacity .15s;
+    }
+    .skip-btn:active { opacity: 0.65; }
+
+    /* ── done screen ── */
+    .done-screen {
+      align-items: center; justify-content: center;
+      padding: 40px 24px; text-align: center;
+    }
+    .done-emoji  { font-size: 68px; margin-bottom: 18px; }
+    .done-title  { font-size: 30px; font-weight: 800; margin-bottom: 6px; }
+    .done-sub    { font-size: 14px; color: #555; margin-bottom: 24px; }
+    .done-stats  { display: flex; gap: 28px; margin-bottom: 32px; justify-content: center; }
+    .done-stat-n { font-size: 36px; font-weight: 800; }
+    .done-stat-l { font-size: 12px; color: #555; margin-top: 2px; }
+    .skipped-box {
+      background: var(--card); border-radius: 14px; padding: 14px 18px;
+      margin-bottom: 24px; max-width: 300px; width: 100%; text-align: left;
+    }
+    .skipped-label { font-size: 11px; color: #444; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .skipped-item  { font-size: 13px; color: #555; margin-bottom: 4px; }
+    .done-msg  { color: #333; font-size: 13px; line-height: 1.8; margin-bottom: 40px; max-width: 270px; }
+    .home-again-btn {
+      padding: 18px 52px; background: var(--hip); color: #0a0a16;
+      border-radius: 18px; font-size: 16px; font-weight: 800; border: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div id="homeScreen" class="screen active fade">
+    <div class="home-header">
+      <p class="home-label">Physical Therapy</p>
+      <h1 class="home-title">Daily<br/><span style="color:var(--hip)">Recovery Session</span></h1>
+      <p class="home-sub" id="homeSubtitle"></p>
+      <div class="time-bars" id="timeBars"></div>
+    </div>
+    <div class="ex-list" id="exList"></div>
+    <div class="note-box" style="margin-top:4px">
+      <p class="note-label">SESSION ORDER</p>
+      <p class="note-text">Hips first (floor) → Wrist & thumb (seated) → Shoulder (standing). Flows naturally — no jumping around.</p>
+    </div>
+    <div style="flex:1"></div>
+    <div class="start-wrap">
+      <button class="start-btn" onclick="startSession()">Start Session →</button>
+    </div>
+  </div>
+
+  <!-- EXERCISE -->
+  <div id="exScreen" class="screen">
+    <div class="ex-nav">
+      <button class="back-btn" onclick="goHome()">‹</button>
+      <div style="flex:1">
+        <p class="nav-cat" id="navCat"></p>
+        <p class="nav-sub" id="navSub"></p>
+      </div>
+      <div class="set-badge" id="setBadge"></div>
+    </div>
+
+    <div class="prog-wrap">
+      <div class="prog-track" id="progTrack"></div>
+      <div class="prog-times">
+        <span id="timeIn"></span>
+        <span id="timeLeft"></span>
+      </div>
+    </div>
+
+    <div class="rest-bar" id="restBar" style="display:none">
+      <div>
+        <p class="rest-label" id="restLabel"></p>
+        <p class="rest-sub" id="restSub"></p>
+      </div>
+      <p class="rest-count" id="restCount"></p>
+    </div>
+
+    <div class="ex-card" id="exCard">
+      <div>
+        <p class="ex-level" id="exLevel"></p>
+        <h2 class="ex-name" id="exName"></h2>
+        <p class="ex-why" id="exWhy"></p>
+      </div>
+      <div class="how-box" id="howBox">
+        <p class="how-label" id="howLabel">How To Do It</p>
+        <p class="how-text" id="howText"></p>
+      </div>
+      <div class="timer-wrap" id="timerWrap"></div>
+      <div>
+        <p class="cues-label">Key Points</p>
+        <div id="cuesList"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="timer-btn" id="timerBtn" style="display:none" onclick="toggleTimer()"></button>
+      <button class="done-btn" id="doneBtn" onclick="doneSet()"></button>
+      <button class="skip-btn" onclick="skipEx()">Skip →</button>
+    </div>
+  </div>
+
+  <!-- DONE -->
+  <div id="doneScreen" class="screen done-screen fade">
+    <p class="done-emoji">🎯</p>
+    <h2 class="done-title">Session Done!</h2>
+    <p class="done-sub">Full PT Session</p>
+    <div class="done-stats">
+      <div>
+        <p class="done-stat-n" style="color:var(--hip)" id="doneCompleted"></p>
+        <p class="done-stat-l">Completed</p>
+      </div>
+      <div id="doneSkippedBlock" style="display:none">
+        <p class="done-stat-n" style="color:#2a2a3a" id="doneSkipped"></p>
+        <p class="done-stat-l">Skipped</p>
+      </div>
+    </div>
+    <div class="skipped-box" id="skippedBox" style="display:none">
+      <p class="skipped-label">Try these next time</p>
+      <div id="skippedList"></div>
+    </div>
+    <p class="done-msg">Every session builds on the last. Show up tomorrow and it compounds.</p>
+    <button class="home-again-btn" onclick="goHome()">Back to Home</button>
+  </div>
+
+</div>
+
+<script>
+// ─── SESSION DATA ─────────────────────────────────────────────────────────────
+const CAT_COLORS = { "Hips":"#e07a5f", "Wrist & Thumb":"#81b29a", "Shoulder":"#6b9ab8" };
+const CAT_ICONS  = { "Hips":"🦵", "Wrist & Thumb":"✋", "Shoulder":"💪" };
+
+const SESSION = [
+  {
+    id:"h1", name:"Glute Bridge", category:"Hips", sets:3, reps:"15 reps", estMin:4.5,
+    level:"Lying on your back",
+    why:"#1 hip exercise. Activates glutes, stabilizes the pelvis, opens hip flexors, and strengthens the lower back all in one movement.",
+    howTo:"Lie on your back, knees bent, feet flat on floor hip-width apart. Press through your heels and drive your hips up until your body forms a straight line from knees to shoulders. Squeeze your glutes hard at the top for 1 second. Lower slowly. That's one rep.",
+    cues:["Feet hip-width apart — not too wide or narrow","Drive through heels, not toes","Squeeze glutes at the top — don't just go up and down","Lower slowly — 2 counts down"],
+  },
+  {
+    id:"h2", name:"Supine Knee Rocks", category:"Hips", sets:2, reps:"12 rocks each side", estMin:2.5,
+    level:"Lying on your back",
+    why:"Mobilizes the hip joint and lumbar spine without any hip flexion — safe for very limited mobility. Loosens everything up after bridges.",
+    howTo:"Lie on your back, knees bent, feet flat on floor. Slowly let both knees drop to one side as far as comfortable. Pause, then bring back to center and drop to the other side. Keep your shoulders flat the whole time.",
+    cues:["Shoulders stay flat on floor — don't let them peel up","Only drop as far as comfortable","Pause at the bottom of each side","Breathe out as knees drop"],
+  },
+  {
+    id:"h3", name:"Hip CARs", category:"Hips", sets:2, reps:"5 slow circles each leg", estMin:3,
+    level:"Standing at a wall or counter",
+    why:"Controlled Articular Rotations — the single most effective exercise for increasing hip joint range of motion. Takes the hip through its full available range actively.",
+    howTo:"Stand with one hand on a wall. Lift one knee to hip height, then slowly rotate it out to the side, behind you, and back around in a full circle. Make it as large as possible while keeping your hips level. 5 circles forward, 5 backward. Switch legs.",
+    cues:["Move as slowly as possible — 5 sec per circle","Keep your hips level — don't tilt or lean","Make the circle as large as you can","Hold wall lightly — balance only"],
+  },
+  {
+    id:"w1", name:"Wrist Flexor & Extensor Stretch", category:"Wrist & Thumb", sets:2, duration:30, estMin:2.5,
+    level:"Seated",
+    why:"The two most critical stretches for tendinitis done back to back — targets both sides of the forearm in one slot.",
+    howTo:"FLEXOR: Arm out, palm up. Other hand pulls fingers back toward you. Hold 30 sec.\n\nEXTENSOR: Same arm, flip palm down. Other hand presses hand downward. Hold 30 sec.\n\nSwitch arms and repeat.",
+    cues:["Elbow stays straight the whole time","Gentle pull — no sharp pain","Hold the full 30 seconds each direction","Do both arms"],
+  },
+  {
+    id:"w2", name:"Thumb Glide + Wrist Circles", category:"Wrist & Thumb", sets:2, reps:"10 thumb glides + 10 circles each way", estMin:2,
+    level:"Seated",
+    why:"Thumb glide is best for De Quervain's tendinitis. Wrist circles maintain full joint range of motion. Combined they cover everything in under 2 minutes.",
+    howTo:"THUMB GLIDE: Hand open. Slowly sweep thumb across palm to base of little finger, then extend back out. 10 reps each hand.\n\nWRIST CIRCLES: Loose fists. Rotate both wrists in large slow circles — 10 clockwise, 10 counter-clockwise.",
+    cues:["Thumb glide: slow and deliberate — full arc each rep","Stop if sharp pain","Wrist circles: full range — don't shortcut","Keep wrist circles slow and smooth"],
+  },
+  {
+    id:"s1", name:"Shoulder Pendulum", category:"Shoulder", sets:1, reps:"30 sec each direction", estMin:1.5,
+    level:"Standing, leaning on a counter",
+    why:"Decompresses the shoulder joint with zero muscle effort. Always done first — opens the joint space before any active work.",
+    howTo:"Lean forward, rest your good arm on a counter. Let your affected arm hang completely loose. Shift your body weight gently so the arm swings — do NOT use your shoulder muscles. Forward-back, side-to-side, then small circles. 30 sec each.",
+    cues:["Arm must be 100% relaxed — no muscle tension","Motion comes from your body shifting — not moving your arm","Gravity does the work","Smaller is better — don't force range"],
+  },
+  {
+    id:"s2", name:"Wall Angels", category:"Shoulder", sets:3, reps:"10 slow reps", estMin:3,
+    level:"Standing against a wall",
+    why:"The single best shoulder rehab exercise. Trains scapular control, overhead mobility, and posture correction simultaneously.",
+    howTo:"Back flat against wall — head, shoulders, lower back all touching. Arms in goalpost with backs of hands flat on wall. Slowly slide arms up overhead as far as possible while keeping everything on the wall. Slide back down.",
+    cues:["Everything stays on the wall — head, back, hands","Moment hands lift off = your limit. Stop there","3 counts up, 3 counts down — go slow","Lower back must stay flat — no arching"],
+  },
+  {
+    id:"s3", name:"Sleeper Stretch", category:"Shoulder", sets:2, duration:45, estMin:2,
+    level:"Lying on your side",
+    why:"Most effective posterior capsule stretch available. Directly addresses the tightness that causes most rotator cuff problems and shoulder impingement.",
+    howTo:"Lie on your side. Bottom arm at shoulder height, elbow bent 90° — forearm pointing up. Top hand gently presses bottom hand toward the floor until you feel a deep stretch in the BACK of your shoulder. Hold. Switch sides each set.",
+    cues:["Bottom shoulder stays pressed into the floor","Feel it in the BACK of shoulder — not the front","Gentle pressure — stretch not pain","Switch sides each set"],
+  },
+];
+
+const TOTAL_MIN = SESSION.reduce((a,e)=>a+e.estMin,0);
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let idx=0, setNum=1, timerSec=0, timerTotal=0, running=false, resting=false, restSec=0;
+let skipped=[], expanded=null;
+let timerInterval=null, restInterval=null;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function ex()   { return SESSION[idx]; }
+function color(){ return CAT_COLORS[ex().category]; }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.remove('active');
+    s.classList.remove('fade');
+  });
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  void el.offsetWidth; // reflow
+  el.classList.add('fade');
+  window.scrollTo(0,0);
+}
+
+function stopTimers() {
+  clearInterval(timerInterval); timerInterval=null; running=false;
+  clearInterval(restInterval);  restInterval=null;
+}
+
+function initTimer(e) {
+  if (e.duration) { timerSec=e.duration; timerTotal=e.duration; }
+  else { timerSec=0; timerTotal=0; }
+  running=false;
+}
+
+// ─── HOME ─────────────────────────────────────────────────────────────────────
+function buildHome() {
+  // subtitle
+  document.getElementById('homeSubtitle').textContent =
+    `${Math.floor(TOTAL_MIN)}–${Math.ceil(TOTAL_MIN)+2} min · ${SESSION.length} exercises · highest impact only`;
+
+  // time bars
+  const cats = [...new Set(SESSION.map(e=>e.category))];
+  const barsEl = document.getElementById('timeBars');
+  barsEl.innerHTML = '';
+  cats.forEach(cat => {
+    const mins = SESSION.filter(e=>e.category===cat).reduce((a,e)=>a+e.estMin,0);
+    const pct  = (mins/TOTAL_MIN)*100;
+    const cc   = CAT_COLORS[cat];
+    barsEl.innerHTML += `
+      <div class="time-bar-row">
+        <span class="time-bar-label" style="color:${cc}">${CAT_ICONS[cat]} ${cat}</span>
+        <div class="time-bar-track"><div class="time-bar-fill" style="width:${pct}%;background:${cc}"></div></div>
+        <span class="time-bar-min">${Math.round(mins)}m</span>
+      </div>`;
+  });
+
+  // exercise list
+  const listEl = document.getElementById('exList');
+  listEl.innerHTML = '';
+  cats.forEach(cat => {
+    const cc    = CAT_COLORS[cat];
+    const catEl = document.createElement('div');
+    catEl.style.marginBottom='18px';
+    catEl.innerHTML = `<div class="cat-label"><span>${CAT_ICONS[cat]}</span><span style="color:${cc}">${cat}</span></div>`;
+    SESSION.filter(e=>e.category===cat).forEach(e => {
+      const meta = e.duration ? `${e.sets} sets · ${e.duration}s hold · ~${e.estMin<1?'<1':Math.round(e.estMin*2)/2} min`
+                               : `${e.sets} sets · ${e.reps} · ~${e.estMin<1?'<1':Math.round(e.estMin*2)/2} min`;
+      const wrap = document.createElement('div');
+
+      const btn = document.createElement('button');
+      btn.className = 'ex-row' + (expanded===e.id?' open':'');
+      btn.style.border = `1px solid ${cc}22`;
+      btn.innerHTML = `
+        <div style="flex:1">
+          <p class="ex-row-name">${e.name}</p>
+          <p class="ex-row-meta">${meta}</p>
+        </div>
+        <span class="ex-chevron" style="color:${cc}">${expanded===e.id?'▲':'▼'}</span>`;
+      btn.onclick = () => { expanded = expanded===e.id ? null : e.id; buildHome(); };
+
+      wrap.appendChild(btn);
+
+      if (expanded===e.id) {
+        const det = document.createElement('div');
+        det.className='ex-detail';
+        det.style.border=`1px solid ${cc}22`;
+        det.innerHTML=`
+          <p class="detail-section-label" style="color:${cc}">WHY THIS ONE</p>
+          <p class="detail-text" style="margin-bottom:12px">${e.why}</p>
+          <p class="detail-section-label" style="color:${cc}">HOW TO DO IT</p>
+          <p class="detail-text how">${e.howTo}</p>`;
+        wrap.appendChild(det);
+      }
+      catEl.appendChild(wrap);
+    });
+    listEl.appendChild(catEl);
+  });
+}
+
+// ─── SESSION ──────────────────────────────────────────────────────────────────
+function startSession() {
+  idx=0; setNum=1; resting=false; skipped=[]; expanded=null;
+  stopTimers();
+  initTimer(ex());
+  renderEx();
+  showScreen('exScreen');
+}
+
+function goHome() {
+  stopTimers();
+  buildHome();
+  showScreen('homeScreen');
+}
+
+function renderEx() {
+  const e  = ex();
+  const cc = color();
+
+  // nav
+  document.getElementById('navCat').textContent  = `${CAT_ICONS[e.category]} ${e.category}`;
+  document.getElementById('navCat').style.color  = cc;
+  document.getElementById('navSub').textContent  =
+    `Exercise ${idx+1} of ${SESSION.length}${skipped.length>0?' · '+skipped.length+' skipped':''}`;
+  document.getElementById('setBadge').textContent = `Set ${setNum}/${e.sets}`;
+  document.getElementById('setBadge').style.color = cc;
+  document.getElementById('setBadge').style.background = cc+'22';
+
+  // progress
+  const track = document.getElementById('progTrack');
+  track.innerHTML = '';
+  SESSION.forEach((s,i) => {
+    const seg = document.createElement('div');
+    seg.className = 'prog-seg';
+    seg.style.width   = `${(s.estMin/TOTAL_MIN)*100}%`;
+    seg.style.background = skipped.includes(s.id) ? '#222' : (i<=idx ? CAT_COLORS[s.category] : '#181828');
+    seg.style.opacity = i===idx ? '1' : i<idx ? '0.6' : skipped.includes(s.id) ? '0.15' : '0.2';
+    track.appendChild(seg);
+  });
+  const minIn   = Math.round(SESSION.slice(0,idx).reduce((a,s)=>a+s.estMin,0));
+  const minLeft = Math.round(SESSION.slice(idx).reduce((a,s)=>a+s.estMin,0));
+  document.getElementById('timeIn').textContent   = `~${minIn} min in`;
+  document.getElementById('timeLeft').textContent = `~${minLeft} min left`;
+
+  // rest bar
+  document.getElementById('restBar').style.display = resting ? '' : 'none';
+  document.getElementById('restBar').style.border  = `1px solid ${cc}25`;
+  document.getElementById('restLabel').style.color = cc;
+  document.getElementById('restLabel').textContent = 'Rest';
+  document.getElementById('restSub').textContent   = `Set ${setNum} of ${e.sets} next`;
+  document.getElementById('restCount').style.color = cc;
+
+  // card
+  document.getElementById('exCard').style.border = `1px solid ${cc}18`;
+  document.getElementById('exLevel').textContent = e.level;
+  document.getElementById('exName').textContent  = e.name;
+  document.getElementById('exWhy').textContent   = e.why;
+  document.getElementById('exWhy').style.color   = cc;
+  document.getElementById('howBox').style.borderLeftColor = cc;
+  document.getElementById('howLabel').style.color = cc;
+  document.getElementById('howText').textContent  = e.howTo;
+
+  // timer or reps
+  const tw = document.getElementById('timerWrap');
+  tw.innerHTML = '';
+  if (e.duration) {
+    tw.innerHTML = `
+      <div style="text-align:center">
+        <svg class="timer-svg" width="112" height="112" viewBox="0 0 112 112" id="timerSvg">
+          <circle cx="56" cy="56" r="46" fill="none" stroke="#181828" stroke-width="9"/>
+          <circle cx="56" cy="56" r="46" fill="none" stroke="${cc}" stroke-width="9"
+            stroke-dasharray="${2*Math.PI*46}" stroke-dashoffset="${2*Math.PI*46}"
+            stroke-linecap="round" transform="rotate(-90 56 56)"
+            id="timerArc" style="transition:stroke-dashoffset 0.5s linear"/>
+          <text x="56" y="63" text-anchor="middle" fill="white" font-size="28"
+            font-family="DM Mono,monospace" font-weight="bold" id="timerTxt">${timerSec}</text>
+          <text x="56" y="77" text-anchor="middle" fill="#556" font-size="10"
+            font-family="sans-serif">sec</text>
+        </svg>
+        <p class="timer-done" id="timerDone" style="color:${cc};display:${timerSec===0&&!running?'block':'none'}">✓ Switch sides!</p>
+      </div>`;
+  } else {
+    tw.innerHTML = `
+      <div class="reps-box" style="border-color:${cc}28;background:${cc}10">
+        <p class="reps-val" style="color:${cc}">${e.reps}</p>
+        <p class="reps-sub">per set</p>
+      </div>`;
+  }
+
+  // cues
+  const cl = document.getElementById('cuesList');
+  cl.innerHTML = '';
+  e.cues.forEach(c => {
+    cl.innerHTML += `
+      <div class="cue-row">
+        <div class="cue-icon" style="background:${cc}18;color:${cc}">✓</div>
+        <p class="cue-text">${c}</p>
+      </div>`;
+  });
+
+  // timer btn
+  const tb = document.getElementById('timerBtn');
+  if (e.duration && !resting) {
+    tb.style.display  = '';
+    tb.style.color    = cc;
+    tb.style.borderColor = cc+'35';
+    updateTimerBtn();
+  } else {
+    tb.style.display = 'none';
+  }
+
+  // done btn
+  renderDoneBtn();
+
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const arc = document.getElementById('timerArc');
+  const txt = document.getElementById('timerTxt');
+  const done= document.getElementById('timerDone');
+  if (!arc) return;
+  const circ = 2*Math.PI*46;
+  const prog = timerTotal>0 ? (timerSec/timerTotal)*circ : 0;
+  arc.style.strokeDashoffset = circ - prog;
+  if (txt) txt.textContent = timerSec;
+  if (done) done.style.display = (timerSec===0 && !running) ? 'block' : 'none';
+}
+
+function updateTimerBtn() {
+  const tb = document.getElementById('timerBtn');
+  if (!tb || tb.style.display==='none') return;
+  tb.textContent = running ? '⏸  Pause' : timerSec===0 ? '↺  Restart' : '▶  Start Timer';
+}
+
+function renderDoneBtn() {
+  const e  = ex();
+  const cc = color();
+  const db = document.getElementById('doneBtn');
+  db.disabled  = resting;
+  db.style.background = resting ? 'var(--card)' : cc;
+  db.style.color      = resting ? '#444' : '#0a0a16';
+  db.style.opacity    = resting ? '0.6' : '1';
+  if (resting)
+    db.textContent = `Resting… ${restSec}s`;
+  else if (setNum < e.sets)
+    db.textContent = `✓  Set ${setNum} Done — Rest & Next Set`;
+  else if (idx+1 < SESSION.length)
+    db.textContent = '✓  Done — Next Exercise →';
+  else
+    db.textContent = '✓  Finish Session';
+}
+
+function toggleTimer() {
+  const e = ex();
+  if (running) {
+    clearInterval(timerInterval); timerInterval=null; running=false;
+  } else {
+    if (timerSec===0) { timerSec=e.duration; timerTotal=e.duration; }
+    running=true;
+    timerInterval = setInterval(() => {
+      timerSec--;
+      updateTimerDisplay();
+      if (timerSec<=0) { clearInterval(timerInterval); timerInterval=null; running=false; updateTimerBtn(); }
+    }, 1000);
+  }
+  updateTimerBtn();
+}
+
+function doneSet() {
+  if (resting) return;
+  stopTimers();
+  const e = ex();
+  if (setNum < e.sets) {
+    // start rest
+    resting=true; restSec=20; setNum++;
+    renderDoneBtn();
+    document.getElementById('restBar').style.display='';
+    document.getElementById('restCount').textContent=restSec;
+    document.getElementById('timerBtn').style.display='none';
+    restInterval = setInterval(()=>{
+      restSec--;
+      document.getElementById('restCount').textContent=restSec;
+      renderDoneBtn();
+      if (restSec<=0) {
+        clearInterval(restInterval); restInterval=null; resting=false;
+        initTimer(ex());
+        renderEx();
+      }
+    },1000);
+  } else {
+    moveNext(false);
+  }
+}
+
+function skipEx()  { stopTimers(); moveNext(true); }
+
+function moveNext(skip) {
+  if (skip) skipped.push(ex().id);
+  const n = idx+1;
+  if (n >= SESSION.length) { showDone(); return; }
+  idx=n; setNum=1; resting=false;
+  initTimer(ex());
+  renderEx();
+  document.getElementById('exScreen').scrollTop=0;
+}
+
+// ─── DONE ─────────────────────────────────────────────────────────────────────
+function showDone() {
+  const comp = SESSION.length - skipped.length;
+  document.getElementById('doneCompleted').textContent = comp;
+  if (skipped.length>0) {
+    document.getElementById('doneSkippedBlock').style.display='';
+    document.getElementById('doneSkipped').textContent=skipped.length;
+    document.getElementById('skippedBox').style.display='';
+    document.getElementById('skippedList').innerHTML =
+      SESSION.filter(e=>skipped.includes(e.id)).map(e=>`<p class="skipped-item">· ${e.name}</p>`).join('');
+  } else {
+    document.getElementById('doneSkippedBlock').style.display='none';
+    document.getElementById('skippedBox').style.display='none';
+  }
+  showScreen('doneScreen');
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+buildHome();
+</script>
+</body>
+</html>
